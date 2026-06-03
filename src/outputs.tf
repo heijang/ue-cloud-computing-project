@@ -17,3 +17,13 @@ output "alb_dns_name" {
   description = "DNS name of the ALB (public entry point)."
   value       = module.loadbalancer.alb_dns_name
 }
+
+output "aurora_cluster_endpoint" {
+  description = "Writer endpoint of the Aurora MySQL cluster."
+  value       = module.database.cluster_endpoint
+}
+
+output "aurora_reader_endpoint" {
+  description = "Reader endpoint of the Aurora MySQL cluster."
+  value       = module.database.reader_endpoint
+}

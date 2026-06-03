@@ -44,3 +44,9 @@ variable "az_count" {
     error_message = "Spec requires private subnets in at least two AZs."
   }
 }
+
+variable "db_instance_class" {
+  description = "Instance class for Aurora MySQL cluster instances."
+  type        = string
+  default     = "db.t3.medium"
+}
