@@ -22,6 +22,18 @@ variable "vpc_cidr" {
   default     = "10.0.0.0/16"
 }
 
+variable "instance_type" {
+  description = "EC2 instance type for the web tier."
+  type        = string
+  default     = "t3.micro"
+}
+
+variable "instance_profile_name" {
+  description = "IAM Instance Profile name for EC2 (e.g. LabInstanceProfile). Leave null to skip."
+  type        = string
+  default     = null
+}
+
 variable "az_count" {
   description = "Number of Availability Zones to span. Spec requires >= 2."
   type        = number

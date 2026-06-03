@@ -12,3 +12,8 @@ output "private_db_subnet_ids" {
   description = "IDs of the private database subnets."
   value       = module.network.private_db_subnet_ids
 }
+
+output "alb_dns_name" {
+  description = "DNS name of the ALB (public entry point)."
+  value       = module.loadbalancer.alb_dns_name
+}
