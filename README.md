@@ -7,28 +7,47 @@ All commands run from `src/`.
 ## Prerequisites
 
 - Terraform >= 1.6
-- AWS CLI profile configured in `~/.aws/credentials`
+- AWS CLI
 
-## Environment Setup
+## 1. AWS Credentials
 
-Variables are loaded automatically from `terraform.tfvars` (gitignored). Copy the template for your target environment and edit it:
+Add a named profile to `~/.aws/credentials`. The profile name must match `aws_profile` in your tfvars (step 2).
+
+**AWS Academy lab** — start the lab, click **AWS Details → AWS CLI: Show**, then copy that block into `~/.aws/credentials`, renaming the header to `[academy]`:
+
+```ini
+[academy]
+aws_access_key_id=ASIA...
+aws_secret_access_key=...
+aws_session_token=...
+```
+
+> Academy credentials are **temporary** — paste a fresh block each lab session (the `aws_session_token` is required).
+
+Verify it works: `aws sts get-caller-identity --profile academy`
+
+<!-- Personal account: add a standard [personal] profile (long-lived access key, no session token) and set aws_profile = "personal". -->
+
+## 2. Environment Config (terraform.tfvars)
+
+`terraform.tfvars` is loaded automatically by Terraform and is **gitignored** (it holds your machine/account-specific values). It is not in the repo — create it by copying the template for your target environment, then edit the values:
 
 ```bash
 cd src
-cp dev.example.tfvars terraform.tfvars       # personal account
-# or: cp academy.example.tfvars terraform.tfvars   # AWS Academy lab
+cp academy.example.tfvars terraform.tfvars    # AWS Academy lab
+# or: cp dev.example.tfvars terraform.tfvars   # personal account
 ```
 
 | Variable | Description |
 |----------|-------------|
-| `aws_profile` | AWS CLI profile name (`personal` / `academy`) |
+| `aws_profile` | AWS CLI profile name from step 1 (`personal` / `academy`) |
 | `aws_region` | Region (default `us-east-1`) |
 | `env_name` | Name prefix for all resources (default `dev`) |
 | `instance_profile_name` | `LabInstanceProfile` for Academy. Leave unset on a personal account to auto-create an IAM role (SSM + secret read). |
 | `enable_ssh` | `true` to generate an SSH key pair and open port 22 |
-| `ssh_ingress_cidr` | CIDR allowed to SSH. Set to `YOUR_IP/32`. |
+| `ssh_ingress_cidr` | CIDR allowed to SSH. Set to `YOUR_IP/32` (or `0.0.0.0/0` to allow all). |
 
-## Terraform Usage
+## 3. Terraform Usage
 
 ```bash
 terraform init          # once, or when modules/providers change
