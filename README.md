@@ -62,6 +62,8 @@ After apply, get the app URL:
 terraform output -raw alb_dns_name      # open http://<that-dns> in a browser
 ```
 
+> If the first `apply` fails on the ASG (`AWSServiceRoleForAutoScaling` / load balancer validation), just run `terraform apply` again — it's a one-time service-linked-role propagation delay on a fresh account.
+
 ## Web Server Access (SSH)
 
 Requires `enable_ssh = true`. The private key is written to `src/<env_name>-web-key.pem`.
