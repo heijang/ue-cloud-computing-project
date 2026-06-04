@@ -35,6 +35,7 @@ module "compute" {
   instance_profile_name = var.instance_profile_name
   secret_arn            = module.secrets.secret_arn
   secret_name           = module.secrets.secret_name
+  db_secret_version_id  = module.database.secret_version_id
   db_init_sql           = file("${path.module}/scripts/init-db.sql")
   aws_region            = var.aws_region
   asg_min               = var.asg_min

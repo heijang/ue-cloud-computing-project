@@ -40,6 +40,12 @@ variable "secret_arn" {
   type        = string
 }
 
+variable "db_secret_version_id" {
+  description = "ID of the DB secret version containing the real RDS endpoint. Gates instance launch so the app reads a populated secret (avoids host=\"\" race)."
+  type        = string
+  default     = ""
+}
+
 variable "db_init_sql" {
   description = "Contents of the DB init SQL script, written to /home/ubuntu/init-db.sql on each instance. Empty string skips it."
   type        = string

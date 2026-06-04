@@ -177,7 +177,14 @@ resource "aws_launch_template" "web" {
     }
   }
 
-  tags = { Name = "${var.env_name}-web-lt" }
+  tags = {
+    Name = "${var.env_name}-web-lt"
+    # Referencing the DB secret version forces this launch template (and thus
+    # the ASG/instances) to be created only after the secret holds the real
+    # RDS endpoint — otherwise instances boot, read host="" and fall back to
+    # localhost:3306 (ECONNREFUSED).
+    db_secret_version = var.db_secret_version_id
+  }
 }
 
 ###############################################################################
