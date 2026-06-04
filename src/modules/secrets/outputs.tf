@@ -8,6 +8,11 @@ output "secret_id" {
   value       = aws_secretsmanager_secret.db_credentials.id
 }
 
+output "secret_name" {
+  description = "Name of the Secrets Manager secret."
+  value       = aws_secretsmanager_secret.db_credentials.name
+}
+
 output "db_username" {
   description = "Master username for the Aurora cluster."
   value       = var.db_username

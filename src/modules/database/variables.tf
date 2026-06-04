@@ -1,5 +1,5 @@
 variable "vpc_id" {
-  description = "VPC ID where the Aurora cluster is deployed."
+  description = "VPC ID where the RDS instance is deployed."
   type        = string
 }
 
@@ -19,12 +19,12 @@ variable "env_name" {
 }
 
 variable "db_username" {
-  description = "Master username for the Aurora cluster."
+  description = "Master username for the RDS instance."
   type        = string
 }
 
 variable "db_password" {
-  description = "Master password for the Aurora cluster."
+  description = "Master password for the RDS instance."
   type        = string
   sensitive   = true
 }
@@ -35,12 +35,12 @@ variable "db_name" {
 }
 
 variable "secret_id" {
-  description = "Secrets Manager secret ID to update with cluster endpoints."
+  description = "Secrets Manager secret ID to update with the RDS endpoint."
   type        = string
 }
 
 variable "db_instance_class" {
-  description = "Instance class for Aurora cluster instances."
+  description = "Instance class for the RDS instance."
   type        = string
-  default     = "db.t3.medium"
+  default     = "db.t3.micro"
 }

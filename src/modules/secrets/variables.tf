@@ -3,14 +3,20 @@ variable "env_name" {
   type        = string
 }
 
-variable "db_username" {
-  description = "Master username for the Aurora cluster."
+variable "secret_name" {
+  description = "Secrets Manager secret name. MUST match the name hard-coded in the provided app (app/config/config.js → \"Mydbsecret\")."
   type        = string
-  default     = "admin"
+  default     = "Mydbsecret"
+}
+
+variable "db_username" {
+  description = "Master username for the RDS instance."
+  type        = string
+  default     = "nodeapp"
 }
 
 variable "db_name" {
   description = "Name of the default database to create."
   type        = string
-  default     = "studentrecords"
+  default     = "STUDENTS"
 }

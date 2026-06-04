@@ -13,7 +13,3 @@ variable "env_name" {
   type        = string
 }
 
-variable "instance_ids" {
-  description = "EC2 instance IDs to register with the target group."
-  type        = list(string)
-}

@@ -13,7 +13,7 @@ variable "aws_profile" {
 variable "env_name" {
   description = "Environment name used in tags and resource names."
   type        = string
-  default     = "prod"
+  default     = "dev"
 }
 
 variable "vpc_cidr" {
@@ -29,7 +29,7 @@ variable "instance_type" {
 }
 
 variable "instance_profile_name" {
-  description = "IAM Instance Profile name for EC2 (e.g. LabInstanceProfile). Leave null to skip."
+  description = "Existing IAM instance profile to attach. Set to \"LabInstanceProfile\" for AWS Academy. Leave null on a personal account to have Terraform create a role + profile (SSM + secret read)."
   type        = string
   default     = null
 }
@@ -45,8 +45,38 @@ variable "az_count" {
   }
 }
 
+variable "asg_min" {
+  description = "Minimum number of instances in the Auto Scaling Group."
+  type        = number
+  default     = 2
+}
+
+variable "asg_max" {
+  description = "Maximum number of instances in the Auto Scaling Group."
+  type        = number
+  default     = 4
+}
+
+variable "asg_desired" {
+  description = "Desired number of instances in the Auto Scaling Group."
+  type        = number
+  default     = 2
+}
+
 variable "db_instance_class" {
-  description = "Instance class for Aurora MySQL cluster instances."
+  description = "Instance class for the RDS MySQL instance."
   type        = string
-  default     = "db.t3.medium"
+  default     = "db.t3.micro"
+}
+
+variable "enable_ssh" {
+  description = "Generate an SSH key pair, write the .pem locally, and open port 22 on the web tier for inspection."
+  type        = bool
+  default     = false
+}
+
+variable "ssh_ingress_cidr" {
+  description = "CIDR allowed to SSH into the web tier when enable_ssh is true. Restrict to your IP/32 in real use."
+  type        = string
+  default     = "0.0.0.0/0"
 }

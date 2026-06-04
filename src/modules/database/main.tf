@@ -1,24 +1,16 @@
 ###############################################################################
-# Data Sources
-###############################################################################
-
-data "aws_availability_zones" "available" {
-  state = "available"
-}
-
-###############################################################################
 # DB Subnet Group
 ###############################################################################
 
 resource "aws_db_subnet_group" "this" {
-  name       = "${var.env_name}-aurora-subnet-group"
+  name       = "${var.env_name}-db-subnet-group"
   subnet_ids = var.private_subnet_ids
 
-  tags = { Name = "${var.env_name}-aurora-subnet-group" }
+  tags = { Name = "${var.env_name}-db-subnet-group" }
 }
 
 ###############################################################################
-# Security Group — Aurora (inbound 3306 from web SG only)
+# Security Group — RDS (inbound 3306 from web SG only)
 ###############################################################################
 
 resource "aws_security_group" "db" {
@@ -46,69 +38,49 @@ resource "aws_vpc_security_group_egress_rule" "db_all_out" {
 }
 
 ###############################################################################
-# Aurora MySQL Cluster
+# RDS MySQL Instance (single-AZ per spec)
 ###############################################################################
 
-resource "aws_rds_cluster" "this" {
-  cluster_identifier = "${var.env_name}-aurora-cluster"
-  engine             = "aurora-mysql"
-  engine_version     = "8.0.mysql_aurora.3.05.2"
+resource "aws_db_instance" "this" {
+  identifier = "${var.env_name}-mysql"
+  engine     = "mysql"
 
-  master_username = var.db_username
-  master_password = var.db_password
-  database_name   = var.db_name
+  instance_class        = var.db_instance_class
+  allocated_storage     = 20
+  max_allocated_storage = 100
+
+  db_name  = var.db_name
+  username = var.db_username
+  password = var.db_password
 
   db_subnet_group_name   = aws_db_subnet_group.this.name
   vpc_security_group_ids = [aws_security_group.db.id]
 
+  multi_az            = true
+  publicly_accessible = false
   skip_final_snapshot = true
   apply_immediately   = true
 
-  tags = { Name = "${var.env_name}-aurora-cluster" }
-}
-
-###############################################################################
-# Aurora Instances — Writer (AZ-a) + Reader (AZ-b)
-###############################################################################
-
-resource "aws_rds_cluster_instance" "writer" {
-  identifier         = "${var.env_name}-aurora-writer"
-  cluster_identifier = aws_rds_cluster.this.id
-  instance_class     = var.db_instance_class
-  engine             = aws_rds_cluster.this.engine
-  engine_version     = aws_rds_cluster.this.engine_version
-  availability_zone  = data.aws_availability_zones.available.names[0]
-
   monitoring_interval = 0 # Enhanced monitoring disabled per spec
 
-  tags = { Name = "${var.env_name}-aurora-writer" }
-}
-
-resource "aws_rds_cluster_instance" "reader" {
-  identifier         = "${var.env_name}-aurora-reader"
-  cluster_identifier = aws_rds_cluster.this.id
-  instance_class     = var.db_instance_class
-  engine             = aws_rds_cluster.this.engine
-  engine_version     = aws_rds_cluster.this.engine_version
-  availability_zone  = data.aws_availability_zones.available.names[1]
-
-  monitoring_interval = 0
-
-  tags = { Name = "${var.env_name}-aurora-reader" }
+  tags = { Name = "${var.env_name}-mysql" }
 }
 
 ###############################################################################
-# Update Secrets Manager with actual endpoints
+# Update Secrets Manager with actual endpoint
 ###############################################################################
 
 resource "aws_secretsmanager_secret_version" "db_credentials_final" {
   secret_id = var.secret_id
+  # user/host/password/db are what the provided app reads; username/dbname/port
+  # are what our userdata + db-connect helper read. Store both.
   secret_string = jsonencode({
-    username    = var.db_username
-    password    = var.db_password
-    host        = aws_rds_cluster.this.endpoint
-    reader_host = aws_rds_cluster.this.reader_endpoint
-    port        = "3306"
-    dbname      = var.db_name
+    user     = var.db_username
+    username = var.db_username
+    password = var.db_password
+    host     = aws_db_instance.this.address
+    port     = tostring(aws_db_instance.this.port)
+    db       = var.db_name
+    dbname   = var.db_name
   })
 }

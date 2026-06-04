@@ -1,0 +1,79 @@
+#!/bin/bash -xe
+apt update -y
+apt install nodejs unzip wget npm mysql-client jq curl -y
+
+# Install AWS CLI v2 — the base Ubuntu AMI does not ship it, and the steps
+# below depend on `aws` to read DB credentials from Secrets Manager.
+curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+unzip -q /tmp/awscliv2.zip -d /tmp
+/tmp/aws/install
+export PATH="/usr/local/bin:$PATH"
+
+# Fetch DB credentials from Secrets Manager
+SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id "${secret_name}" \
+  --region "${aws_region}" \
+  --query SecretString \
+  --output text)
+
+export APP_DB_HOST=$(echo "$SECRET_JSON" | jq -r '.host')
+export APP_DB_USER=$(echo "$SECRET_JSON" | jq -r '.username')
+export APP_DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.password')
+export APP_DB_NAME=$(echo "$SECRET_JSON" | jq -r '.dbname')
+export APP_PORT=80
+
+# Helper: `db-connect` opens a mysql session using credentials pulled live
+# from Secrets Manager (handy when SSH-ing in to inspect the database).
+cat > /usr/local/bin/db-connect << 'DBEOF'
+#!/bin/bash
+set -euo pipefail
+SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id "${secret_name}" \
+  --region "${aws_region}" \
+  --query SecretString \
+  --output text)
+export MYSQL_PWD=$(echo "$SECRET_JSON" | jq -r '.password')
+exec mysql \
+  -h "$(echo "$SECRET_JSON" | jq -r '.host')" \
+  -u "$(echo "$SECRET_JSON" | jq -r '.username')" \
+  "$(echo "$SECRET_JSON" | jq -r '.dbname')" "$@"
+DBEOF
+chmod +x /usr/local/bin/db-connect
+
+%{ if db_init_sql != "" ~}
+# Place the DB init script on the instance so it can be run with:
+#   db-connect < /home/ubuntu/init-db.sql
+cat > /home/ubuntu/init-db.sql << 'SQLEOF'
+${db_init_sql}
+SQLEOF
+chown ubuntu:ubuntu /home/ubuntu/init-db.sql
+%{ endif ~}
+
+# Download and install the application
+wget https://aws-tc-largeobjects.s3.us-west-2.amazonaws.com/CUR-TF-200-ACCAP1-1-91571/1-lab-capstone-project-1/code.zip -P /home/ubuntu
+cd /home/ubuntu
+unzip code.zip -x "resources/codebase_partner/node_modules/*"
+cd resources/codebase_partner
+npm install aws aws-sdk
+
+# Start the application
+npm start &
+
+# Persist startup across reboots
+cat > /etc/rc.local << 'RCEOF'
+#!/bin/bash -xe
+export PATH="/usr/local/bin:$PATH"
+SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id "${secret_name}" \
+  --region "${aws_region}" \
+  --query SecretString \
+  --output text)
+export APP_DB_HOST=$(echo "$SECRET_JSON" | jq -r '.host')
+export APP_DB_USER=$(echo "$SECRET_JSON" | jq -r '.username')
+export APP_DB_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.password')
+export APP_DB_NAME=$(echo "$SECRET_JSON" | jq -r '.dbname')
+export APP_PORT=80
+cd /home/ubuntu/resources/codebase_partner
+npm start
+RCEOF
+chmod +x /etc/rc.local

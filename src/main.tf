@@ -10,30 +10,38 @@ module "network" {
 }
 
 ###############################################################################
-# Load Balancer (ALB + SG — created before compute so SG ID is available)
+# Load Balancer (ALB + SG — created before compute so TG ARN is available)
 ###############################################################################
 
 module "loadbalancer" {
-  source       = "./modules/loadbalancer"
-  vpc_id       = module.network.vpc_id
-  subnet_ids   = module.network.public_subnet_ids
-  env_name     = var.env_name
-  instance_ids = module.compute.instance_ids
+  source     = "./modules/loadbalancer"
+  vpc_id     = module.network.vpc_id
+  subnet_ids = module.network.public_subnet_ids
+  env_name   = var.env_name
 }
 
 ###############################################################################
-# Compute (EC2 web tier)
+# Compute (ASG web tier — attaches to ALB target group)
 ###############################################################################
 
 module "compute" {
-  source        = "./modules/compute"
-  vpc_id        = module.network.vpc_id
-  subnet_ids    = module.network.public_subnet_ids
-  alb_sg_id     = module.loadbalancer.alb_sg_id
-  env_name      = var.env_name
-  instance_type          = var.instance_type
-  az_count               = var.az_count
-  instance_profile_name  = var.instance_profile_name
+  source                = "./modules/compute"
+  vpc_id                = module.network.vpc_id
+  subnet_ids            = module.network.public_subnet_ids
+  alb_sg_id             = module.loadbalancer.alb_sg_id
+  target_group_arn      = module.loadbalancer.target_group_arn
+  env_name              = var.env_name
+  instance_type         = var.instance_type
+  instance_profile_name = var.instance_profile_name
+  secret_arn            = module.secrets.secret_arn
+  secret_name           = module.secrets.secret_name
+  db_init_sql           = file("${path.module}/scripts/init-db.sql")
+  aws_region            = var.aws_region
+  asg_min               = var.asg_min
+  asg_max               = var.asg_max
+  asg_desired           = var.asg_desired
+  enable_ssh            = var.enable_ssh
+  ssh_ingress_cidr      = var.ssh_ingress_cidr
 }
 
 ###############################################################################
@@ -46,7 +54,7 @@ module "secrets" {
 }
 
 ###############################################################################
-# Database (Aurora MySQL)
+# Database (RDS MySQL)
 ###############################################################################
 
 module "database" {

@@ -64,18 +64,6 @@ resource "aws_lb_target_group" "web" {
 }
 
 ###############################################################################
-# Target Group Attachment
-###############################################################################
-
-resource "aws_lb_target_group_attachment" "web" {
-  count = length(var.instance_ids)
-
-  target_group_arn = aws_lb_target_group.web.arn
-  target_id        = var.instance_ids[count.index]
-  port             = 80
-}
-
-###############################################################################
 # Listener — HTTP:80 → Target Group
 ###############################################################################
 

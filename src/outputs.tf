@@ -18,12 +18,17 @@ output "alb_dns_name" {
   value       = module.loadbalancer.alb_dns_name
 }
 
-output "aurora_cluster_endpoint" {
-  description = "Writer endpoint of the Aurora MySQL cluster."
-  value       = module.database.cluster_endpoint
+output "db_endpoint" {
+  description = "Endpoint address of the RDS MySQL instance."
+  value       = module.database.db_endpoint
 }
 
-output "aurora_reader_endpoint" {
-  description = "Reader endpoint of the Aurora MySQL cluster."
-  value       = module.database.reader_endpoint
+output "ssh_key_name" {
+  description = "Name of the generated EC2 key pair (null when SSH is disabled)."
+  value       = module.compute.ssh_key_name
+}
+
+output "ssh_private_key_path" {
+  description = "Local path to the generated private key .pem (null when SSH is disabled)."
+  value       = module.compute.ssh_private_key_path
 }

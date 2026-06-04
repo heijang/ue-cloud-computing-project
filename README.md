@@ -1,87 +1,91 @@
 # Student Records POC — Infrastructure
 
-Terraform IaC project for deploying a student records web application on AWS.
+Terraform IaC for a student records web app on AWS (VPC, ALB, Auto Scaling web tier, RDS MySQL, Secrets Manager). Single region: `us-east-1`.
+
+All commands run from `src/`.
 
 ## Prerequisites
 
-- [Terraform](https://developer.hashicorp.com/terraform/install) >= 1.0
-- AWS CLI profile configured (`~/.aws/credentials`)
-- Set `aws_profile` in `src/terraform.tfvars`
+- Terraform >= 1.6
+- AWS CLI profile configured in `~/.aws/credentials`
 
-## Usage
+## Environment Setup
 
-All commands are run from the `src/` directory.
+Variables are loaded automatically from `terraform.tfvars` (gitignored). Copy the template for your target environment and edit it:
 
 ```bash
 cd src
+cp dev.example.tfvars terraform.tfvars       # personal account
+# or: cp academy.example.tfvars terraform.tfvars   # AWS Academy lab
 ```
 
-### 1. Initialize
+| Variable | Description |
+|----------|-------------|
+| `aws_profile` | AWS CLI profile name (`personal` / `academy`) |
+| `aws_region` | Region (default `us-east-1`) |
+| `env_name` | Name prefix for all resources (default `dev`) |
+| `instance_profile_name` | `LabInstanceProfile` for Academy. Leave unset on a personal account to auto-create an IAM role (SSM + secret read). |
+| `enable_ssh` | `true` to generate an SSH key pair and open port 22 |
+| `ssh_ingress_cidr` | CIDR allowed to SSH. Set to `YOUR_IP/32`. |
 
-Download Terraform providers and modules. Run once initially or whenever modules change.
+## Terraform Usage
 
 ```bash
-terraform init
+terraform init          # once, or when modules/providers change
+terraform plan          # preview changes
+terraform apply         # create/update (no -var needed — uses terraform.tfvars)
+terraform destroy       # tear down
 ```
 
-### 2. Plan (preview changes)
-
-Review which resources will be created, changed, or destroyed before applying.
+After apply, get the app URL:
 
 ```bash
-terraform plan
+terraform output -raw alb_dns_name      # open http://<that-dns> in a browser
 ```
 
-### 3. Apply (create resources)
+## Web Server Access (SSH)
 
-Apply the planned changes to AWS.
+Requires `enable_ssh = true`. The private key is written to `src/<env_name>-web-key.pem`.
 
 ```bash
-terraform apply
+# 1. Find a running instance's public IP (instances are behind an ASG, so IPs change)
+aws ec2 describe-instances --profile <profile> --region us-east-1 \
+  --filters "Name=instance-state-name,Values=running" "Name=key-name,Values=<env_name>-web-key" \
+  --query "Reservations[].Instances[].PublicIpAddress" --output text
+
+# 2. SSH in (user is 'ubuntu')
+ssh -i src/<env_name>-web-key.pem ubuntu@<public-ip>
 ```
 
-Auto-approve (skip confirmation prompt):
+## Database
+
+The web tier reads DB credentials from Secrets Manager at boot. To connect from a web instance, use the bundled helper (pulls credentials live from Secrets Manager):
 
 ```bash
-terraform apply -auto-approve
+db-connect                                # interactive mysql session
+db-connect -e "SELECT * FROM students;"   # one-off query
 ```
 
-### 4. Destroy (tear down all resources)
+### DB Init
 
-Delete all AWS resources managed by Terraform.
+`init-db.sql` is uploaded to each instance at `/home/ubuntu/init-db.sql`. The schema lives in RDS (shared by all instances), so run it **once from any single instance**:
 
 ```bash
-terraform destroy
+db-connect < /home/ubuntu/init-db.sql
 ```
 
-Auto-approve:
-
-```bash
-terraform destroy -auto-approve
-```
-
-### 5. Check state
-
-List resources currently managed by Terraform:
-
-```bash
-terraform state list
-```
+The script is idempotent (`CREATE TABLE IF NOT EXISTS`), so re-running is safe.
 
 ## Project Structure
 
 ```
 src/
-├── main.tf              # Root module — wires all child modules together
-├── variables.tf         # Root variable definitions
-├── outputs.tf           # Root outputs
-├── providers.tf         # AWS provider configuration
-├── backend.tf           # State file backend configuration
-├── terraform.tfvars     # Environment-specific variable values (not tracked by git)
+├── main.tf / variables.tf / outputs.tf / versions.tf / providers.tf
+├── *.example.tfvars       # per-environment templates (terraform.tfvars is gitignored)
 └── modules/
-    ├── network/         # VPC, subnets, IGW, route tables
-    ├── compute/         # EC2 instances, web security group
-    ├── loadbalancer/    # ALB, target group, listener, ALB security group
-    ├── secrets/         # Secrets Manager for DB credentials
-    └── database/        # Aurora MySQL cluster (writer + reader)
+    ├── network/           # VPC, subnets, IGW, route tables
+    ├── compute/           # launch template, ASG, web SG, SSH key, IAM profile
+    ├── loadbalancer/      # ALB, target group, listener, ALB SG
+    ├── secrets/           # Secrets Manager (DB credentials, name "Mydbsecret")
+    └── database/          # RDS MySQL, DB SG, subnet group
 ```
