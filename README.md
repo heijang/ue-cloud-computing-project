@@ -97,6 +97,15 @@ db-connect < /home/ubuntu/init-db.sql
 
 The script is idempotent (`CREATE TABLE IF NOT EXISTS`), so re-running is safe.
 
+### Logs
+
+The app runs from user-data, so its output (including DB connection errors) goes to the cloud-init log. SSH into an instance and check:
+
+```bash
+sudo tail -50 /var/log/cloud-init-output.log
+sudo grep -Ei "secret|connect|error" /var/log/cloud-init-output.log
+```
+
 ## Project Structure
 
 ```
