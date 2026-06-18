@@ -4,8 +4,6 @@ This document describes how to satisfy **Task 4: Load Test the Application** fro
 `docs/requirments.md`: drive load against the ALB and observe the Auto Scaling
 Group scale **out** under load and scale **in** after the load stops.
 
-> Korean version: [load-testing-kr.md](load-testing-kr.md)
-
 ---
 
 ## Goal

@@ -5,8 +5,6 @@ the **AWS Pricing Calculator**, based on the resources **actually running in AWS
 It lists the billable resources, the step-by-step calculator workflow, and how to
 lay out the final cost table for the report.
 
-> Korean version: [cost-estimation-kr.md](cost-estimation-kr.md)
-
 ---
 
 ## Scope
