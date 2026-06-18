@@ -1,9 +1,9 @@
 # Cost Estimation — Guide
 
 This document explains how to produce the monthly cost estimate for this POC using
-the **AWS Pricing Calculator**, scoped to exactly the resources that Terraform in
-`src/` creates. It lists the billable resources, the step-by-step calculator
-workflow, and how to lay out the final cost table for the report.
+the **AWS Pricing Calculator**, based on the resources **actually running in AWS**.
+It lists the billable resources, the step-by-step calculator workflow, and how to
+lay out the final cost table for the report.
 
 > Korean version: [cost-estimation-kr.md](cost-estimation-kr.md)
 
@@ -12,38 +12,38 @@ workflow, and how to lay out the final cost table for the report.
 ## Scope
 
 - Region: **us-east-1** only.
-- Estimate **only** what `src/` provisions — no extra/assumed services.
-- Use the **architecture already built** (this is not a re-design).
+- Estimate **only** the resources actually deployed in the AWS account — no
+  extra/assumed services.
+- Use the **architecture already running** (this is not a re-design).
 
 ---
 
-## 1. Billable resources (from `src/`)
+## 1. Billable resources
 
 Most networking/IAM objects are **free**; cost is driven by a handful of resources.
 
 ### Resources that cost money
 
-| # | Service | Resource (Terraform) | Config | Cost driver |
+| # | Service | What it is | Config | Cost driver |
 |---|---|---|---|---|
-| 1 | **EC2 (web tier)** | `aws_launch_template` + `aws_autoscaling_group` | **t3.micro**, **2** desired (min 2, **max 4**) | Per-instance hour × instance count |
-| 2 | **EBS** | Root volume of each EC2 (from AMI default) | gp3/gp2, ~8 GB each | GB-month × instance count |
-| 3 | **Application Load Balancer** | `aws_lb` (type `application`) | 1 ALB, HTTP:80 | ALB-hour + LCU-hour |
-| 4 | **RDS (MySQL)** | `aws_db_instance` | **db.t3.micro**, **20 GB** (autoscale→100), **Multi-AZ = true** | Instance-hour (×2 for Multi-AZ) + storage GB-month |
-| 5 | **Secrets Manager** | `aws_secretsmanager_secret` | 1 secret | $/secret-month + per-10k API calls |
-| 6 | **Data transfer out** | (implicit) | Internet egress from ALB/EC2 | GB-month over free tier |
+| 1 | **EC2 (web tier)** | Web servers behind the ALB | **t3.micro**, **2** running (auto-scales **2 → 4**) | Per-instance hour × instance count |
+| 2 | **EBS** | Root volume of each EC2 | gp3/gp2, ~8 GB each | GB-month × instance count |
+| 3 | **Application Load Balancer** | 1 ALB, HTTP:80 | internet-facing | ALB-hour + LCU-hour |
+| 4 | **RDS (MySQL)** | Managed database | **db.t3.micro**, **20 GB** (autoscale→100), **Multi-AZ** | Instance-hour (×2 for Multi-AZ) + storage GB-month |
+| 5 | **Secrets Manager** | DB credentials store | 1 secret | $/secret-month + per-10k API calls |
+| 6 | **Data transfer out** | Internet egress from ALB/EC2 | — | GB-month over free tier |
 
-> **Note on RDS Multi-AZ:** the code sets `multi_az = true` — the standard
+> **Note on RDS Multi-AZ:** the database runs as **Multi-AZ** — the standard
 > high-availability choice. Multi-AZ roughly **doubles** the RDS instance cost vs
 > Single-AZ; this is intentional (HA is prioritized over cost for this workload).
-> Estimate RDS as **Multi-AZ** so the figure matches the deployed code.
+> Estimate RDS as **Multi-AZ** so the figure matches what is running.
 
 ### Resources that are FREE (list as $0 for completeness)
 
-VPC, subnets, route tables, Internet Gateway, security groups, target group,
-launch template (the template itself), Auto Scaling group/policy, IAM role +
-instance profile, key pair. **No NAT Gateway** (web tier is in public subnets) and
-**no Elastic IP** — both would otherwise be significant costs, so call out that
-they are intentionally absent.
+VPC, subnets, route tables, Internet Gateway, security groups, target group, Auto
+Scaling group/policy, IAM role + instance profile, key pair. **No NAT Gateway**
+(web tier is in public subnets) and **no Elastic IP** — both would otherwise be
+significant costs, so call out that they are intentionally absent.
 
 ---
 
@@ -62,7 +62,7 @@ The calculator needs **no login** and does not touch your account.
    |---|---|
    | **Amazon EC2** | t3.micro; **Quantity = 2** (baseline) — optionally add a second line at Quantity 4 for the peak/scaled-out case; On-Demand, Linux; usage 730 hrs/mo; add ~8 GB gp3 EBS per instance |
    | **Elastic Load Balancing** | Application Load Balancer; 1 ALB; estimate LCUs from expected traffic (a low value is fine for a POC) |
-   | **Amazon RDS for MySQL** | db.t3.micro; **Multi-AZ** (matches code); 730 hrs/mo; 20 GB gp2/gp3 storage |
+   | **Amazon RDS for MySQL** | db.t3.micro; **Multi-AZ**; 730 hrs/mo; 20 GB gp2/gp3 storage |
    | **AWS Secrets Manager** | 1 secret; a small number of API calls/month |
    | **Data Transfer** | a modest GB/month of outbound (POC-level) |
 
@@ -97,8 +97,8 @@ Keep one summary table. Suggested columns:
 
 Everything fits on **one slide**. Suggested structure, top to bottom:
 
-1. **Title + scope line (1 line):** e.g. *"Monthly cost estimate — resources in
-   `src/`, region us-east-1, On-Demand."*
+1. **Title + scope line (1 line):** e.g. *"Monthly cost estimate — resources
+   running in AWS, region us-east-1, On-Demand."*
 2. **Cost table (center):** the summary table above. Keep the rows compact; the
    **Total (baseline)** and **Total (peak, 4× EC2)** rows are the headline.
 3. **Assumptions footnote (small text, 1–2 lines):** t3.micro / db.t3.micro,
@@ -107,14 +107,3 @@ Everything fits on **one slide**. Suggested structure, top to bottom:
 
 > Keep it to one slide: lead with the **baseline vs peak total**, let the table
 > support it, and push all caveats into a small footnote rather than extra slides.
-
----
-
-## Checklist
-
-- [ ] Every billable resource from `src/` has a calculator line item.
-- [ ] Region is us-east-1 on every line.
-- [ ] RDS reflects **Multi-AZ** (matches the deployed code; HA over cost).
-- [ ] Baseline (2 EC2) **and** peak (4 EC2) totals are shown.
-- [ ] Free resources are listed as $0 so reviewers see they were not forgotten.
-- [ ] Saved/exported calculator link is attached to the report.
